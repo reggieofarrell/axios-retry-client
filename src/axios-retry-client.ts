@@ -1,7 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axiosRetry from 'axios-retry';
 import { logData, logInfo } from './logger';
-import type { Agent as HttpsAgent } from 'https';
 
 export enum RequestType {
   GET = 'GET',

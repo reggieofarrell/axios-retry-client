@@ -50,11 +50,6 @@ export interface AxiosRetryClientOptions {
    * Name of the client. Used for logging
    */
   name?: string;
-  /**
-   * Pre-configured https.Agent for Node.js environment.
-   * Allows for disabling SSL verification when necessary
-   */
-  httpsAgent?: HttpsAgent;
 }
 
 export class AxiosRetryClient {
@@ -84,7 +79,6 @@ export class AxiosRetryClient {
     const client = axios.create({
       ...config.axiosConfig,
       baseURL: config.baseURL,
-      httpsAgent: config.httpsAgent, // Use the provided httpsAgent if available
     });
 
     if (config.maxRetries! > 0) {

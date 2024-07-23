@@ -92,9 +92,11 @@ console.log(data);
 const client = new AxiosRetryClient({
   baseURL: 'https://api.example.com',
   name: 'ExampleClient',
-  agent: new https.Agent({
-    rejectUnauthorized: false,
-  });
+  axiosConfig: {
+    httpsAgent: new https.Agent({
+      rejectUnauthorized: false,
+    });
+  }
 });
 ```
 

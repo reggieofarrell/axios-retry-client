@@ -1,0 +1,42 @@
+{
+  "name": "@reggieofarrell/axios-retry-client",
+  "version": "0.0.1",
+  "description": "A generic REST API client based on axios with retry",
+  "author": "Reggie O'Farrell",
+  "license": "0BSD",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "start": "tsc --watch",
+    "test": "exit 0",
+    "deploy:patch": "npm version patch && git push && git push --tags",
+    "deploy:minor": "npm version minor && git push && git push --tags",
+    "deploy:major": "npm version major && git push && git push --tags",
+    "format": "npx prettier --write .",
+    "linkMe": "npm link",
+    "unlinkMe": "npm unlink -g && npm i",
+    "copy-src": "cpx 'src/**/*' dist/src"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "types": "dist/esm/index.d.ts",
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "cpx": "^1.5.0",
+    "prettier": "^3.3.3",
+    "tsc-watch": "^6.0.4",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "axios-retry": "^4.4.2",
+    "chalk": "^4.1.2",
+    "util": "^0.12.5"
+  }
+}

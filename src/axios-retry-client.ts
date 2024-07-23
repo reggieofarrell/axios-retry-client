@@ -19,7 +19,7 @@ export interface AxiosRetryClientOptions {
   /**
    * Configuration for the underlying axios instance
    */
-  axiosConfig?: Omit<AxiosRequestConfig, 'baseURL' | 'headers'>;
+  axiosConfig?: Omit<AxiosRequestConfig, 'baseURL'>;
   /**
    * Base URL for the API
    */

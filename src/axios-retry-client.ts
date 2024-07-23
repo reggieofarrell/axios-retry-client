@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axiosRetry from 'axios-retry';
 import { logData, logInfo } from './logger';
+import type { Agent as HttpsAgent } from 'https';
 
 export enum RequestType {
   GET = 'GET',
@@ -49,6 +50,11 @@ export interface AxiosRetryClientOptions {
    * Name of the client. Used for logging
    */
   name?: string;
+  /**
+   * Pre-configured https.Agent for Node.js environment.
+   * Allows for disabling SSL verification when necessary
+   */
+  httpsAgent?: HttpsAgent;
 }
 
 export class AxiosRetryClient {
@@ -75,7 +81,11 @@ export class AxiosRetryClient {
     this.debugLevel = config.debugLevel;
     this.name = config.name;
 
-    const client = axios.create({ ...config.axiosConfig, baseURL: config.baseURL });
+    const client = axios.create({
+      ...config.axiosConfig,
+      baseURL: config.baseURL,
+      httpsAgent: config.httpsAgent, // Use the provided httpsAgent if available
+    });
 
     if (config.maxRetries! > 0) {
       axiosRetry(client, {
@@ -164,6 +174,15 @@ export class AxiosRetryClient {
 
   private _initialRetryDelay = () => this.initialRetryDelay!;
 
+  /**
+   * Handles errors from the axios instance. Override this method for
+   * custom error handling functionality specific to the API you are
+   * consuming.
+   * @param error - The error object
+   * @param reqType - The request type
+   * @param url - The request URL
+   * @see https://axios-http.com/docs/handling_errors
+   */
   protected errorHandler = (error: any, reqType: RequestType, url: string) => {
     if (error.response) {
       // The request was made and the server responded with a status code

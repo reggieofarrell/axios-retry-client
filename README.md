@@ -86,6 +86,18 @@ const { request, data } = await client.get('/endpoint');
 console.log(data);
 ```
 
+### Disables TSL checks (server only)
+
+```typescript
+const client = new AxiosRetryClient({
+  baseURL: 'https://api.example.com',
+  name: 'ExampleClient',
+  agent: new https.Agent({
+    rejectUnauthorized: false,
+  });
+});
+```
+
 ### Logging / Error Handling
 
 The client includes built-in error handling that logs detailed information based on the debug level.

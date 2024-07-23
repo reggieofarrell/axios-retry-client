@@ -221,7 +221,9 @@ export class AxiosRetryClient {
         logData(`[${this.name}] ${reqType} ${url} : error.request`, error.request);
       }
 
-      throw new Error(`[${this.name}] ${reqType} ${url} : no response`, { cause: error });
+      throw new Error(`[${this.name}] ${reqType} ${url} [no response] : ${error.message}`, {
+        cause: error,
+      });
     } else {
       // Something happened in setting up the request that triggered an Error
       if (this.debug) {

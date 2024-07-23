@@ -1,7 +1,7 @@
 {
   "name": "@reggieofarrell/axios-retry-client",
   "version": "0.0.1",
-  "description": "A generic REST API client based on axios with retry",
+  "description": "A generic and extendable REST API client based on axios with retry, written in TypeScript",
   "author": "Reggie O'Farrell",
   "license": "0BSD",
   "publishConfig": {

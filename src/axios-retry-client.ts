@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axiosRetry from 'axios-retry';
-import { logData, logInfo } from 'logger';
+import { logData, logInfo } from './logger';
 
 export enum RequestType {
   GET = 'GET',
@@ -19,7 +19,7 @@ export interface AxiosRetryClientOptions {
   /**
    * Configuration for the underlying axios instance
    */
-  axiosConfig?: Omit<AxiosRequestConfig, 'baseURL'>;
+  axiosConfig?: Omit<AxiosRequestConfig, 'baseURL' | 'headers'>;
   /**
    * Base URL for the API
    */

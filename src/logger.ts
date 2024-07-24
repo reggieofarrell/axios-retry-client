@@ -1,7 +1,21 @@
-import chalk from 'chalk';
-import util from 'util';
+/**
+ * Simple color function that uses console color codes for Node.js
+ * and falls back to plain text for browsers.
+ */
+const color =
+  (colorCode: string) =>
+  (text: string): string => {
+    // @ts-ignore
+    if (typeof window === 'undefined') {
+      return `\x1b[${colorCode}m${text}\x1b[0m`;
+    }
+    return text;
+  };
 
-chalk.level = 1;
+const yellow = color('33');
+const green = color('32');
+const cyan = color('36');
+const red = color('31');
 
 /**
  * Default logging functions, for when a custom error
@@ -9,30 +23,49 @@ chalk.level = 1;
  */
 
 /**
- * Logs a warning to the console and Reactotron
+ * Logs a warning to the console
  */
 export const logWarning = (message: string) => {
-  console.log(chalk.yellow(message));
+  console.log(yellow(message));
 };
 
 /**
- * Logs info to to the console and Reactotron
+ * Logs info to the console
  */
 export const logInfo = (message: string) => {
-  console.log(chalk.greenBright(message));
+  console.log(green(message));
+};
+
+/**
+ * Safely stringifies objects, handling circular references
+ */
+const safeStringify = (obj: any, indent = 2): string => {
+  const cache = new Set();
+  return JSON.stringify(
+    obj,
+    (_, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (cache.has(value)) {
+          return '[Circular]';
+        }
+        cache.add(value);
+      }
+      return value;
+    },
+    indent
+  );
 };
 
 /**
  * Logs data - creates colorized console output for local development
- * and logs to Reactotron
  */
 export const logData = (title = '', data: any) => {
   console.log('');
-  console.log(chalk.cyanBright(`== ${title} ==`));
+  console.log(cyan(`== ${title} ==`));
 
   if (data) {
     if (typeof data === 'object') {
-      console.log(util.inspect(data, { showHidden: false, depth: null, colors: true }));
+      console.log(safeStringify(data));
     } else {
       console.log(data);
     }
@@ -40,9 +73,9 @@ export const logData = (title = '', data: any) => {
 };
 
 /**
- * Logs an error to the console as well as Reactotron
+ * Logs an error to the console
  * @param {*} error
- * @param {Object} context - only used if error is a string
+ * @param {string} title - optional title for the error
  */
 export const logError = (error: unknown, title?: string) => {
   if (title) {
@@ -51,19 +84,19 @@ export const logError = (error: unknown, title?: string) => {
   }
 
   if (error instanceof Error) {
-    console.log(chalk.red(error.stack));
+    console.log(red(error.stack || error.message));
 
     if (error.cause) {
       console.log('');
-      console.log(chalk.bold.red('== Error Cause =='));
+      console.log(red('== Error Cause =='));
 
       if (error.cause instanceof Error) {
-        console.log(chalk.red(error.cause.stack));
+        console.log(red(error.cause.stack || error.cause.message));
       } else {
-        console.log(chalk.red(JSON.stringify(error.cause, null, 2)));
+        console.log(red(safeStringify(error.cause)));
       }
     }
   } else {
-    console.error(chalk.red(error));
+    console.error(red(String(error)));
   }
 };

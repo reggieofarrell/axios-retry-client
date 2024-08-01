@@ -1,1 +1,1 @@
-export { AxiosRetryClient } from './axios-retry-client';
+export { AxiosRetryClient, ApiResponseError, RequestType } from './axios-retry-client';

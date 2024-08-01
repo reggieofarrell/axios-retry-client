@@ -8,7 +8,7 @@
     "registry": "https://npm.pkg.github.com/"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && rollup -c",
     "start": "tsc --watch",
     "test": "exit 0",
     "deploy:patch": "npm version patch && git push && git push --tags",
@@ -22,14 +22,15 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "files": [
-    "dist/",
-    "src/"
+    "dist/"
   ],
-  "types": "dist/esm/index.d.ts",
+  "types": "dist/index.d.ts",
   "devDependencies": {
     "@types/node": "^20.14.12",
     "cpx": "^1.5.0",
     "prettier": "^3.3.3",
+    "rollup": "^4.19.2",
+    "rollup-plugin-dts": "^6.1.1",
     "tsc-watch": "^6.0.4",
     "typescript": "^5.5.3"
   },

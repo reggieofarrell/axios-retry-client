@@ -36,9 +36,6 @@ export const logInfo = (message: string) => {
   console.log(green(message));
 };
 
-/**
- * Safely stringifies objects, handling circular references
- */
 const safeStringify = (obj: any, indent = 2): string => {
   const cache = new Set();
   return JSON.stringify(

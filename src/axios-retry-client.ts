@@ -26,7 +26,8 @@ export interface AxiosRetryClientOptions {
    */
   baseURL: string;
   /**
-   * Number of maxRetries to attempt
+   * Number of maxRetries to attempt. Defaults to 0.
+   * Change to a positive number to enable retries.
    */
   maxRetries?: number;
   /**
@@ -34,7 +35,7 @@ export interface AxiosRetryClientOptions {
    */
   initialRetryDelay?: number;
   /**
-   * Whether to use exponential backoff for retry delay
+   * Whether to use exponential backoff for retry delay, defaults to true.
    */
   exponentialBackoff?: boolean;
   /**
@@ -181,7 +182,7 @@ export class AxiosRetryClient {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      if (this.debug && this.debugLevel === 'verbose') {
+      if (this.debug) {
         if (this.debugLevel === 'verbose') {
           logData(`[${this.name}] ${reqType} ${url} : error.response`, error.response);
         } else {

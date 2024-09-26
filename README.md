@@ -1,6 +1,6 @@
 # Axios Retry Client
 
-A generic REST API client based on axios with retry functionality.
+A class based api client for both the server and browser built on `axios` and `axios-retry`
 
 ## Installation
 
@@ -14,7 +14,7 @@ npm install @reggieofarrell/axios-retry-client
 
 The `AxiosRetryClient` accepts the following configuration options:
 
-- `axiosConfig`: Configuration for the underlying axios instance.
+- `axiosConfig`: Configuration for the underlying [axios instance](https://axios-http.com/docs/instance).
 - `baseURL`: Base URL for the API.
 - `maxRetries`: Number of max retries to attempt.
 - `initialRetryDelay`: Retry delay in seconds. Default is 1 second.
@@ -86,8 +86,27 @@ const { request, data } = await client.get('/endpoint');
 console.log(data);
 ```
 
-### Disables TSL checks (server only)
+### Type responses
+```typescript
+// pass a generic if you're using typescript to get a typed response
+const { data } = await client.get<SomeResponseType>('/endpoint')
+```
 
+### Custom request config
+Pass an [AxiosRequestConfig](https://axios-http.com/docs/req_config) as the final argument for any of the
+request methods to customize the request config for a specific request (additional headers, etc)
+```typescript
+const { data } = await client.get('/endpoint', {
+  headers: {
+    'X-Some-Header': 'value'
+  },
+  timeout: 5000
+})
+```
+
+### Disable TSL checks (server only)
+If necessary you can disable the TSL checks in case the server you are hitting is using a self-signed
+certificate or has some other TLS issue
 ```typescript
 const client = new AxiosRetryClient({
   baseURL: 'https://api.example.com',
@@ -104,8 +123,77 @@ const client = new AxiosRetryClient({
 
 The client includes built-in error handling that logs detailed information based on the debug level.
 For more granular control, you can extend the AxiosRetryClient class to implement your own `errorHandler` function
+
+### Extending
+
+AxiosRetryClient is meant to be extended for the purpose of interacting with a specific api. This way you can set common headers, create your own error handling function that is specific to the api you are consuming, etc. This is a basic example...
+
+```typescript
+import { ApiResponseError, AxiosRetryClient } from '@reggieofarrell/axios-retry-client';
+
+const defaultHeaders = {
+  Authorization: `Basic ${process.env.MY_AUTH_TOKEN}`
+};
+
+export class CustomApiClient extends AxiosRetryClient {
+  constructor() {
+    super({
+      baseURL: 'https://api.example.com',
+      name: 'Example API Client',
+      maxRetries: 3,
+      axiosConfig: {
+        headers: {
+          Authorization: `Basic ${process.env.MY_AUTH_TOKEN}`
+        }
+      }
+    })
+  }
+
+  protected errorHandler = (error: any, reqType: RequestType, url: string) {
+    /**
+     * do your custom error handline logic based on the docs for
+     * the API you are consuming.
+     * https://axios-http.com/docs/handling_errors
+     */
+  }
+
+  // optionally build out your own SDK of sorts like so...
+
+  someEndpointGroup = {
+    get: async (): Promise<SomeTypedResponse> => {
+      return (await this.get('/some-endpoint-group/something'))
+    }
+  }
+
+  /**
+   * Note:
+   *
+   * If you are going to follow the pattern above of namespacing groups of endpoints,
+   * make sure to use arrow functions so that 'this' is correctly bound to the class instance
+   */
+}
+
+// In some other file...
+import { CustomApiClient } from './CustomApiClient';
+const client = new CustomApiClient();
+
+const { data } = await client.someEndpointGroup.get();
+
+// or simply...
+
+const { data } = await client.get('/some-endpoint');
+
 ```
 
 ## License
 
 This project is licensed under the 0BSD License. See the [LICENSE](license.txt) file for details.
+
+## Dependencies
+
+This project is build on top of the following open-source libraries:
+
+- [axios](https://github.com/axios/axios) - Promise based HTTP client for the browser and node.js (MIT License)
+- [axios-retry](https://github.com/softonic/axios-retry) - Axios plugin that intercepts failed requests and retries them whenever possible (Apache License 2.0)
+
+For full license texts, please refer to the respective project repositories.

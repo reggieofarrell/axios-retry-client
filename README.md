@@ -1,6 +1,6 @@
 # Axios Retry Client
 
-A class based api client for both the server and browser built on `axios` and `axios-retry`
+A class based api client for both the server and browser built on `axios` and `axios-retry`, written in TypeScript
 
 ## Installation
 

@@ -1,12 +1,24 @@
 {
   "name": "@reggieofarrell/axios-retry-client",
   "version": "0.2.2",
-  "description": "A generic and extendable REST API client based on axios with retry, written in TypeScript",
+  "description": "A class based api client for both the server and browser built on `axios` and `axios-retry`, written in TypeScript",
   "author": "Reggie O'Farrell",
   "license": "0BSD",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reggieofarrell/axios-retry-client"
   },
+  "bugs": {
+    "url": "https://github.com/reggieofarrell/axios-retry-client/issues"
+  },
+  "keywords": [
+    "axios",
+    "axios-retry",
+    "xhr",
+    "http",
+    "ajax",
+    "promise"
+  ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && rollup -c",
     "start": "tsc --watch",

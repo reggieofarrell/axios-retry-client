@@ -121,12 +121,12 @@ export class AxiosRetryClient {
     let req: AxiosResponse<T> | undefined;
 
     // Call beforeRequest hook to potentially modify the request parameters
-    const filteredArgs = this.beforeRequestFilter(requestType, url, data, config);
+    const filteredArgs = await this.beforeRequestFilter(requestType, url, data, config);
     data = filteredArgs.data;
     config = filteredArgs.config;
 
     // Call beforeRequestAction hook to perform any actions before the request is sent
-    this.beforeRequestAction(requestType, url, data, config);
+    await this.beforeRequestAction(requestType, url, data, config);
 
     let axiosInstance = this.axios;
 
@@ -242,14 +242,14 @@ export class AxiosRetryClient {
    * @param config - The request config
    * @returns The modified request parameters
    */
-  protected beforeRequestFilter(
+  protected async beforeRequestFilter(
     //@ts-ignore
     requestType: RequestType,
     //@ts-ignore
     url: string,
     data: any,
     config: AxiosRequestConfig
-  ): { data?: any; config: AxiosRequestConfig } {
+  ): Promise<{ data: any; config: AxiosRequestConfig }> {
     return { data, config };
   }
 
@@ -262,12 +262,12 @@ export class AxiosRetryClient {
    * @param data - The request data
    * @param config - The request config
    */
-  protected beforeRequestAction(
+  protected async beforeRequestAction(
     requestType: RequestType,
     url: string,
     data: any,
     config: AxiosRequestConfig
-  ): void {
+  ): Promise<void> {
     if (this.debug) {
       logData(`[${this.name}] ${requestType} ${url}`, { data, config });
     }

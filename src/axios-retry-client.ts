@@ -174,7 +174,7 @@ export class AxiosRetryClient {
       baseURL: this.baseURL,
     });
 
-    if (retryOptions?.maxRetries && retryOptions.maxRetries > 0) {
+    if (retryOptions.maxRetries !== undefined && retryOptions.maxRetries > 0) {
       axiosRetry(axiosInstance, {
         retries: retryOptions.maxRetries,
         retryDelay: retryOptions.exponentialBackoff

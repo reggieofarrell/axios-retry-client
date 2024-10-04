@@ -93,15 +93,23 @@ export class AxiosRetryClient {
   }
 
   private async _request<T>(
-    method: RequestType,
+    requestType: RequestType,
     url: string,
     data?: any,
     config: AxiosRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     let req: AxiosResponse<T> | undefined;
 
+    // Call beforeRequest hook to potentially modify the request parameters
+    const filteredArgs = this.beforeRequestFilter(requestType, url, data, config);
+    data = filteredArgs.data;
+    config = filteredArgs.config;
+
+    // Call beforeRequestAction hook to perform any actions before the request is sent
+    this.beforeRequestAction(requestType, url, data, config);
+
     try {
-      switch (method) {
+      switch (requestType) {
         case RequestType.GET:
           req = await this.axios.get<T>(url, config);
           break;
@@ -119,7 +127,7 @@ export class AxiosRetryClient {
           break;
       }
     } catch (error) {
-      this.errorHandler(error, method, url);
+      this.errorHandler(error, requestType, url);
     }
 
     return { request: req!, data: req!.data };
@@ -168,6 +176,47 @@ export class AxiosRetryClient {
   };
 
   private _initialRetryDelay = () => this.initialRetryDelay!;
+
+  /**
+   * Define this requestType in your extending class to globally modify the
+   * request data or config before the request is sent.
+   *
+   * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
+   * @param url - The request URL
+   * @param data - The request data
+   * @param config - The request config
+   * @returns The modified request parameters
+   */
+  protected beforeRequestFilter(
+    //@ts-ignore
+    requestType: RequestType,
+    //@ts-ignore
+    url: string,
+    data?: any,
+    config: AxiosRequestConfig = {}
+  ): { data?: any; config: AxiosRequestConfig } {
+    return { data, config };
+  }
+
+  /**
+   * Override this method in your extending class to perform any actions before
+   * the request is sent such as logging the request details. By default, this will
+   * log the request details if debug is enabled.
+   * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
+   * @param url - The request URL
+   * @param data - The request data
+   * @param config - The request config
+   */
+  protected beforeRequestAction(
+    requestType: RequestType,
+    url: string,
+    data?: any,
+    config: AxiosRequestConfig = {}
+  ): void {
+    if (this.debug) {
+      logData(`[${this.name}] ${requestType} ${url}`, { data, config });
+    }
+  }
 
   /**
    * Handles errors from the axios instance. Override this method for

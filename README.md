@@ -104,8 +104,8 @@ const { data } = await client.get('/endpoint', {
 })
 ```
 
-### Disable TSL checks (server only)
-If necessary you can disable the TSL checks in case the server you are hitting is using a self-signed
+### Disable TLS checks (server only)
+If necessary you can disable the TLS checks in case the server you are hitting is using a self-signed
 certificate or has some other TLS issue
 ```typescript
 const client = new AxiosRetryClient({
@@ -183,6 +183,58 @@ const { data } = await client.someEndpointGroup.get();
 
 const { data } = await client.get('/some-endpoint');
 
+```
+### Hooks
+
+If you are extending AxiosRetryClient to create your own class, there are some class methods you can override to hook into the request lifecycle.
+
+#### beforeRequestFilter
+
+```typescript
+/**
+ * Called before the request is actually sent.
+ *
+ * Define this method in your extending class to globally modify the
+ * request data or config before the request is sent.
+ *
+ * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
+ * @param url - The request URL
+ * @param data - The request data
+ * @param config - The request config
+ */
+beforeRequestFilter(
+  requestType: RequestType,
+  url: string,
+  data?: any,
+  config: AxiosRequestConfig = {}
+): { data?: any; config: AxiosRequestConfig } {
+  // do something to modify `data` or `config`
+  return { data, config };
+}
+```
+
+#### beforeRequestAction
+
+```typescript
+/**
+ * Called after `beforeRequestFilter` but before the request is sent.
+ *
+ * Define this requestType in your extending class to perform any actions before
+ * the request is sent such as logging the request details.
+ *
+ * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
+ * @param url - The request URL
+ * @param data - The request data
+ * @param config - The request config
+ */
+protected beforeRequestAction(
+  requestType: RequestType,
+  url: string,
+  data?: any,
+  config: AxiosRequestConfig = {}
+): void {
+  // do some logging, etc
+}
 ```
 
 ## License

@@ -163,7 +163,12 @@ export class AxiosRetryClient {
     return { request: req!, data: req!.data };
   }
 
-  private _createNewAxiosInstanceWithRetry(retryOptions: RetryOptions): AxiosInstance {
+  /**
+   * Creates a new axios instance with retry options
+   * @param retryOptions - The retry options
+   * @returns The new axios instance
+   */
+  protected createNewAxiosInstanceWithRetry(retryOptions: RetryOptions): AxiosInstance {
     const axiosInstance = axios.create({
       ...this.axiosConfig,
       baseURL: this.baseURL,
@@ -238,7 +243,6 @@ export class AxiosRetryClient {
    * @returns The modified request parameters
    */
   protected beforeRequestFilter(
-    this: AxiosRetryClient,
     //@ts-ignore
     requestType: RequestType,
     //@ts-ignore
@@ -259,7 +263,6 @@ export class AxiosRetryClient {
    * @param config - The request config
    */
   protected beforeRequestAction(
-    this: AxiosRetryClient,
     requestType: RequestType,
     url: string,
     data: any,
@@ -279,7 +282,7 @@ export class AxiosRetryClient {
    * @param url - The request URL
    * @see https://axios-http.com/docs/handling_errors
    */
-  protected errorHandler(this: AxiosRetryClient, error: any, reqType: RequestType, url: string) {
+  protected errorHandler(error: any, reqType: RequestType, url: string) {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
@@ -324,12 +327,7 @@ export class AxiosRetryClient {
    * @param reqType - The request type
    * @param url - The request URL
    */
-  protected handleResponseNotReceivedOrOtherError(
-    this: AxiosRetryClient,
-    error: any,
-    reqType: RequestType,
-    url: string
-  ) {
+  protected handleResponseNotReceivedOrOtherError(error: any, reqType: RequestType, url: string) {
     if (error.request) {
       // The request was made but no response was received
       // `error.request` is an instance of XMLHttpRequest in the browser and an instance of

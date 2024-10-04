@@ -168,7 +168,7 @@ export class AxiosRetryClient {
    * @param retryOptions - The retry options
    * @returns The new axios instance
    */
-  protected createNewAxiosInstanceWithRetry(retryOptions: RetryOptions): AxiosInstance {
+  protected createNewAxiosInstanceWithRetry(retryOptions: RetryOptions = {}): AxiosInstance {
     const axiosInstance = axios.create({
       ...this.axiosConfig,
       baseURL: this.baseURL,

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axiosRetry from 'axios-retry';
 import { logData, logInfo } from './logger';
 
@@ -9,6 +9,18 @@ export enum RequestType {
   PUT = 'PUT',
   PATCH = 'PATCH',
   DELETE = 'DELETE',
+}
+
+export interface RetryOptions {
+  maxRetries?: number;
+  initialRetryDelay?: number;
+  exponentialBackoff?: boolean;
+}
+
+export interface AxiosRetryClientRequestConfig extends AxiosRequestConfig {
+  maxRetries?: RetryOptions['maxRetries'];
+  initialRetryDelay?: RetryOptions['initialRetryDelay'];
+  exponentialBackoff?: RetryOptions['exponentialBackoff'];
 }
 
 export interface AxiosRetryClientResponse<T> {
@@ -29,15 +41,15 @@ export interface AxiosRetryClientOptions {
    * Number of maxRetries to attempt. Defaults to 0.
    * Change to a positive number to enable retries.
    */
-  maxRetries?: number;
+  maxRetries?: RetryOptions['maxRetries'];
   /**
    * Retry delay in milliseconds. Default is 1000 milliseconds (1 second)
    */
-  initialRetryDelay?: number;
+  initialRetryDelay?: RetryOptions['initialRetryDelay'];
   /**
    * Whether to use exponential backoff for retry delay, defaults to true.
    */
-  exponentialBackoff?: boolean;
+  exponentialBackoff?: RetryOptions['exponentialBackoff'];
   /**
    * Whether to log request and response details
    */
@@ -59,6 +71,10 @@ export class AxiosRetryClient {
   debug: AxiosRetryClientOptions['debug'];
   debugLevel: AxiosRetryClientOptions['debugLevel'];
   name: AxiosRetryClientOptions['name'];
+  maxRetries: AxiosRetryClientOptions['maxRetries'];
+  exponentialBackoff: AxiosRetryClientOptions['exponentialBackoff'];
+  axiosConfig: AxiosRetryClientOptions['axiosConfig'];
+  baseURL: AxiosRetryClientOptions['baseURL'];
 
   constructor(config: AxiosRetryClientOptions) {
     config = {
@@ -73,9 +89,13 @@ export class AxiosRetryClient {
     };
 
     this.initialRetryDelay = config.initialRetryDelay;
+    this.maxRetries = config.maxRetries;
+    this.exponentialBackoff = config.exponentialBackoff;
     this.debug = config.debug;
     this.debugLevel = config.debugLevel;
     this.name = config.name;
+    this.axiosConfig = config.axiosConfig;
+    this.baseURL = config.baseURL;
 
     const client = axios.create({
       ...config.axiosConfig,
@@ -96,7 +116,7 @@ export class AxiosRetryClient {
     requestType: RequestType,
     url: string,
     data?: any,
-    config: AxiosRequestConfig = {}
+    config: AxiosRetryClientRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     let req: AxiosResponse<T> | undefined;
 
@@ -108,22 +128,32 @@ export class AxiosRetryClient {
     // Call beforeRequestAction hook to perform any actions before the request is sent
     this.beforeRequestAction(requestType, url, data, config);
 
+    let axiosInstance = this.axios;
+
+    if (config.maxRetries !== undefined) {
+      axiosInstance = this._createNewAxiosInstanceWithRetry({
+        maxRetries: config.maxRetries!,
+        initialRetryDelay: config.initialRetryDelay ?? this.initialRetryDelay!,
+        exponentialBackoff: config.exponentialBackoff ?? this.exponentialBackoff!,
+      });
+    }
+
     try {
       switch (requestType) {
         case RequestType.GET:
-          req = await this.axios.get<T>(url, config);
+          req = await axiosInstance.get<T>(url, config);
           break;
         case RequestType.POST:
-          req = await this.axios.post<T>(url, data, config);
+          req = await axiosInstance.post<T>(url, data, config);
           break;
         case RequestType.PUT:
-          req = await this.axios.put<T>(url, data, config);
+          req = await axiosInstance.put<T>(url, data, config);
           break;
         case RequestType.PATCH:
-          req = await this.axios.patch<T>(url, data, config);
+          req = await axiosInstance.patch<T>(url, data, config);
           break;
         case RequestType.DELETE:
-          req = await this.axios.delete<T>(url, config);
+          req = await axiosInstance.delete<T>(url, config);
           break;
       }
     } catch (error) {
@@ -133,9 +163,29 @@ export class AxiosRetryClient {
     return { request: req!, data: req!.data };
   }
 
+  private _createNewAxiosInstanceWithRetry(retryOptions: RetryOptions): AxiosInstance {
+    const axiosInstance = axios.create({
+      ...this.axiosConfig,
+      baseURL: this.baseURL,
+    });
+
+    if (retryOptions?.maxRetries && retryOptions.maxRetries > 0) {
+      axiosRetry(axiosInstance, {
+        retries: retryOptions.maxRetries,
+        retryDelay: retryOptions.exponentialBackoff
+          ? (retryNumber: number, _error: AxiosError) =>
+              Math.pow(retryOptions.initialRetryDelay ?? this.initialRetryDelay!, retryNumber)
+          : (_retryNumber: number, _error: AxiosError) =>
+              retryOptions.initialRetryDelay ?? this.initialRetryDelay!,
+      });
+    }
+
+    return axiosInstance;
+  }
+
   async get<T = any>(
     url: string,
-    config: AxiosRequestConfig = {}
+    config: AxiosRetryClientRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     return this._request<T>(RequestType.GET, url, undefined, config);
   }
@@ -143,7 +193,7 @@ export class AxiosRetryClient {
   async post<T = any>(
     url: string,
     data: any,
-    config: AxiosRequestConfig = {}
+    config: AxiosRetryClientRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     return this._request<T>(RequestType.POST, url, data, config);
   }
@@ -151,7 +201,7 @@ export class AxiosRetryClient {
   async put<T = any>(
     url: string,
     data: any,
-    config: AxiosRequestConfig = {}
+    config: AxiosRetryClientRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     return this._request<T>(RequestType.PUT, url, data, config);
   }
@@ -159,14 +209,14 @@ export class AxiosRetryClient {
   async patch<T = any>(
     url: string,
     data: any,
-    config: AxiosRequestConfig = {}
+    config: AxiosRetryClientRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     return this._request<T>(RequestType.PATCH, url, data, config);
   }
 
   async delete<T = any>(
     url: string,
-    config: AxiosRequestConfig = {}
+    config: AxiosRetryClientRequestConfig = {}
   ): Promise<AxiosRetryClientResponse<T>> {
     return this._request<T>(RequestType.DELETE, url, undefined, config);
   }
@@ -188,12 +238,13 @@ export class AxiosRetryClient {
    * @returns The modified request parameters
    */
   protected beforeRequestFilter(
+    this: AxiosRetryClient,
     //@ts-ignore
     requestType: RequestType,
     //@ts-ignore
     url: string,
-    data?: any,
-    config: AxiosRequestConfig = {}
+    data: any,
+    config: AxiosRequestConfig
   ): { data?: any; config: AxiosRequestConfig } {
     return { data, config };
   }
@@ -208,10 +259,11 @@ export class AxiosRetryClient {
    * @param config - The request config
    */
   protected beforeRequestAction(
+    this: AxiosRetryClient,
     requestType: RequestType,
     url: string,
-    data?: any,
-    config: AxiosRequestConfig = {}
+    data: any,
+    config: AxiosRequestConfig
   ): void {
     if (this.debug) {
       logData(`[${this.name}] ${requestType} ${url}`, { data, config });
@@ -227,7 +279,7 @@ export class AxiosRetryClient {
    * @param url - The request URL
    * @see https://axios-http.com/docs/handling_errors
    */
-  protected errorHandler = (error: any, reqType: RequestType, url: string) => {
+  protected errorHandler(this: AxiosRetryClient, error: any, reqType: RequestType, url: string) {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
@@ -261,7 +313,24 @@ export class AxiosRetryClient {
       } else {
         throw new Error(error);
       }
-    } else if (error.request) {
+    } else {
+      this.handleResponseNotReceivedOrOtherError(error, reqType, url);
+    }
+  }
+
+  /**
+   * Handles errors where a response is not received or other errors occur
+   * @param error - The error object
+   * @param reqType - The request type
+   * @param url - The request URL
+   */
+  protected handleResponseNotReceivedOrOtherError(
+    this: AxiosRetryClient,
+    error: any,
+    reqType: RequestType,
+    url: string
+  ) {
+    if (error.request) {
       // The request was made but no response was received
       // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
       // http.ClientRequest in node.js
@@ -293,7 +362,7 @@ export class AxiosRetryClient {
         throw new Error(error);
       }
     }
-  };
+  }
 }
 
 /**

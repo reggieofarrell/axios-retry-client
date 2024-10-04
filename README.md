@@ -103,6 +103,14 @@ const { data } = await client.get('/endpoint', {
   timeout: 5000
 })
 ```
+In addition to the [AxiosRequestConfig](https://axios-http.com/docs/req_config) options, you can also pass override options for retries
+```typescript
+const { data } = await client.get('/endpoint', {
+  maxRetries: 3,
+  initialRetryDelay: 1000,
+  exponenntialBackoff: true
+})
+```
 
 ### Disable TLS checks (server only)
 If necessary you can disable the TLS checks in case the server you are hitting is using a self-signed

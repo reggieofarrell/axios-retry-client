@@ -131,7 +131,7 @@ export class AxiosRetryClient {
     let axiosInstance = this.axios;
 
     if (config.maxRetries !== undefined) {
-      axiosInstance = this._createNewAxiosInstanceWithRetry({
+      axiosInstance = this.createNewAxiosInstanceWithRetry({
         maxRetries: config.maxRetries!,
         initialRetryDelay: config.initialRetryDelay ?? this.initialRetryDelay!,
         exponentialBackoff: config.exponentialBackoff ?? this.exponentialBackoff!,

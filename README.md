@@ -9,7 +9,7 @@ npm install @reggieofarrell/axios-retry-client
 ```
 
 ## `1.x` Breaking Changes
-`maxRetries`, `initialRetryDelay`, `exponentialBackoff` config options have been removed in favor of just exposing the entire `axios-retry` configuration via a `retryConfig` option. A `retryEnabled` option was also added which defaults to `true`.
+`maxRetries`, `initialRetryDelay`, `exponentialBackoff` config options have been removed in favor of just exposing the entire `axios-retry` configuration via a `retryConfig` option. A `enableRetry` option was also added which defaults to `true`. The previous behavior was to not
 
 ## Usage
 
@@ -22,8 +22,8 @@ The `AxiosRetryClient` accepts the following configuration options:
 - `debug`: Whether to log request and response details.
 - `debugLevel`: Debug level. 'normal' will log request and response data. 'verbose' will log all axios properties for the request and response.
 - `name`: Name of the client. Used for logging.
-- `retryConfig`: Configuration for [axios retry](https://www.npmjs.com/package/axios-retry)
-- `retryEnabled`: Whether to enable retries, defults to `true`
+- `retryConfig`: Configuration for `axios-retry` See https://www.npmjs.com/package/axios-retry for more details. The default config if you don't override it is `{ retries: 3, retryDelay: axiosRetry.exponentialDelay }`
+- `enableRetry`: Whether to enable retries, defults to `false`
 
 For more details, refer to the [source code](src/axios-retry-client.ts).
 

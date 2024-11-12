@@ -34,6 +34,10 @@ export interface AxiosRetryClientOptions extends IAxiosRetryConfig {
    */
   debug?: boolean;
   /**
+   * Whether to enable retries. Defaults to false.
+   */
+  enableRetry?: boolean;
+  /**
    * Debug level. 'normal' will log request and response data. 'verbose' will
    * log all axios properties for the request and response
    */
@@ -43,13 +47,10 @@ export interface AxiosRetryClientOptions extends IAxiosRetryConfig {
    */
   name?: string;
   /**
-   * Configuration for the axios-retry plugin
+   * Configuration for the axios-retry plugin. See [axios-retry](https://www.npmjs.com/package/axios-retry) for more details.
+   * The default configuration is `{ retries: 3, retryDelay: axiosRetry.exponentialDelay }`.
    */
   retryConfig?: IAxiosRetryConfig;
-  /**
-   * Whether to enable retries. Defaults to false.
-   */
-  retryEnabled?: boolean;
 }
 
 export class AxiosRetryClient {
@@ -59,9 +60,9 @@ export class AxiosRetryClient {
   baseURL: AxiosRetryClientOptions['baseURL'];
   debug: AxiosRetryClientOptions['debug'];
   debugLevel: AxiosRetryClientOptions['debugLevel'];
+  enableRetry: AxiosRetryClientOptions['enableRetry'];
   name: AxiosRetryClientOptions['name'];
   retryConfig: AxiosRetryClientOptions['retryConfig'];
-  retryEnabled: AxiosRetryClientOptions['retryEnabled'];
 
   constructor(config: AxiosRetryClientOptions) {
     config = {
@@ -70,7 +71,7 @@ export class AxiosRetryClient {
         retries: 3,
         retryDelay: axiosRetry.exponentialDelay,
       },
-      retryEnabled: true,
+      enableRetry: false,
       debug: false,
       debugLevel: 'normal',
       name: 'AxiosRetryClient',
@@ -84,14 +85,14 @@ export class AxiosRetryClient {
     this.debugLevel = config.debugLevel;
     this.name = config.name;
     this.retryConfig = config.retryConfig;
-    this.retryEnabled = config.retryEnabled;
+    this.enableRetry = config.enableRetry;
 
     const client = axios.create({
       ...config.axiosConfig,
       baseURL: config.baseURL,
     });
 
-    if (config.retryEnabled) {
+    if (config.enableRetry) {
       axiosRetry(client, config.retryConfig);
     }
 
@@ -116,7 +117,7 @@ export class AxiosRetryClient {
 
     let axiosInstance = this.axios;
 
-    if (!!config['axios-retry'] && !this.retryEnabled) {
+    if (!!config['axios-retry'] && !this.enableRetry) {
       axiosInstance = this.createNewAxiosInstanceWithRetry(config['axios-retry']);
     }
 

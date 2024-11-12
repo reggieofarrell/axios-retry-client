@@ -8,6 +8,9 @@ A class based api client for both the server and browser built on `axios` and `a
 npm install @reggieofarrell/axios-retry-client
 ```
 
+## `1.x` Breaking Changes
+`maxRetries`, `initialRetryDelay`, `exponentialBackoff` config options have been removed in favor of just exposing the entire `axios-retry` configuration via a `retryConfig` option. A `retryEnabled` option was also added which defaults to `true`.
+
 ## Usage
 
 ### Configuration Options
@@ -16,12 +19,11 @@ The `AxiosRetryClient` accepts the following configuration options:
 
 - `axiosConfig`: Configuration for the underlying [axios instance](https://axios-http.com/docs/instance).
 - `baseURL`: Base URL for the API.
-- `maxRetries`: Number of max retries to attempt.
-- `initialRetryDelay`: Retry delay in seconds. Default is 1 second.
-- `exponentialBackoff`: Whether to use exponential backoff for retry delay.
 - `debug`: Whether to log request and response details.
 - `debugLevel`: Debug level. 'normal' will log request and response data. 'verbose' will log all axios properties for the request and response.
 - `name`: Name of the client. Used for logging.
+- `retryConfig`: Configuration for [axios retry](https://www.npmjs.com/package/axios-retry)
+- `retryEnabled`: Whether to enable retries, defults to `true`
 
 For more details, refer to the [source code](src/axios-retry-client.ts).
 
@@ -32,11 +34,6 @@ import { AxiosRetryClient } from '@reggieofarrell/axios-retry-client';
 
 const client = new AxiosRetryClient({
   baseURL: 'https://api.example.com',
-  maxRetries: 3,
-  initialRetryDelay: 1000, // 1 second
-  exponentialBackoff: true,
-  debug: true,
-  debugLevel: 'normal',
   name: 'ExampleClient',
 });
 ```
@@ -103,12 +100,12 @@ const { data } = await client.get('/endpoint', {
   timeout: 5000
 })
 ```
-In addition to the [AxiosRequestConfig](https://axios-http.com/docs/req_config) options, you can also pass override options for retries
+In addition to the [AxiosRequestConfig](https://axios-http.com/docs/req_config) options, you can also pass override options for `axios-retry` per request
 ```typescript
 const { data } = await client.get('/endpoint', {
-  maxRetries: 3,
-  initialRetryDelay: 1000,
-  exponenntialBackoff: true
+  'axios-retry': {
+    retries: 5
+  }
 })
 ```
 
@@ -148,7 +145,9 @@ export class CustomApiClient extends AxiosRetryClient {
     super({
       baseURL: 'https://api.example.com',
       name: 'Example API Client',
-      maxRetries: 3,
+      retryConfig: {
+        retries: 2
+      }
       axiosConfig: {
         headers: {
           Authorization: `Basic ${process.env.MY_AUTH_TOKEN}`
@@ -196,7 +195,7 @@ const { data } = await client.get('/some-endpoint');
 
 If you are extending AxiosRetryClient to create your own class, there are some class methods you can override to hook into the request lifecycle.
 
-#### beforeRequestFilter
+#### preRequestFilter
 
 ```typescript
 /**
@@ -210,7 +209,7 @@ If you are extending AxiosRetryClient to create your own class, there are some c
  * @param data - The request data
  * @param config - The request config
  */
-beforeRequestFilter(
+preRequestFilter(
   requestType: RequestType,
   url: string,
   data?: any,
@@ -221,7 +220,7 @@ beforeRequestFilter(
 }
 ```
 
-#### beforeRequestAction
+#### preRequestAction
 
 ```typescript
 /**
@@ -235,7 +234,7 @@ beforeRequestFilter(
  * @param data - The request data
  * @param config - The request config
  */
-protected beforeRequestAction(
+protected preRequestAction(
   requestType: RequestType,
   url: string,
   data?: any,

@@ -1,6 +1,6 @@
 import axios from 'axios';
-import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import axiosRetry from 'axios-retry';
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axiosRetry, { type IAxiosRetryConfig, AxiosRetry } from 'axios-retry';
 import { logData, logInfo } from './logger';
 
 export enum RequestType {
@@ -11,16 +11,8 @@ export enum RequestType {
   DELETE = 'DELETE',
 }
 
-export interface RetryOptions {
-  maxRetries?: number;
-  initialRetryDelay?: number;
-  exponentialBackoff?: boolean;
-}
-
 export interface AxiosRetryClientRequestConfig extends AxiosRequestConfig {
-  maxRetries?: RetryOptions['maxRetries'];
-  initialRetryDelay?: RetryOptions['initialRetryDelay'];
-  exponentialBackoff?: RetryOptions['exponentialBackoff'];
+  'axios-retry'?: IAxiosRetryConfig;
 }
 
 export interface AxiosRetryClientResponse<T> {
@@ -28,7 +20,7 @@ export interface AxiosRetryClientResponse<T> {
   data: T;
 }
 
-export interface AxiosRetryClientOptions {
+export interface AxiosRetryClientOptions extends IAxiosRetryConfig {
   /**
    * Configuration for the underlying axios instance
    */
@@ -37,19 +29,6 @@ export interface AxiosRetryClientOptions {
    * Base URL for the API
    */
   baseURL: string;
-  /**
-   * Number of maxRetries to attempt. Defaults to 0.
-   * Change to a positive number to enable retries.
-   */
-  maxRetries?: RetryOptions['maxRetries'];
-  /**
-   * Retry delay in milliseconds. Default is 1000 milliseconds (1 second)
-   */
-  initialRetryDelay?: RetryOptions['initialRetryDelay'];
-  /**
-   * Whether to use exponential backoff for retry delay, defaults to true.
-   */
-  exponentialBackoff?: RetryOptions['exponentialBackoff'];
   /**
    * Whether to log request and response details
    */
@@ -63,50 +42,57 @@ export interface AxiosRetryClientOptions {
    * Name of the client. Used for logging
    */
   name?: string;
+  /**
+   * Configuration for the axios-retry plugin
+   */
+  retryConfig?: IAxiosRetryConfig;
+  /**
+   * Whether to enable retries. Defaults to false.
+   */
+  retryEnabled?: boolean;
 }
 
 export class AxiosRetryClient {
   axios: AxiosInstance;
-  initialRetryDelay: AxiosRetryClientOptions['initialRetryDelay'] = 1000;
+  axiosConfig: AxiosRetryClientOptions['axiosConfig'];
+  axiosRetry: AxiosRetry;
+  baseURL: AxiosRetryClientOptions['baseURL'];
   debug: AxiosRetryClientOptions['debug'];
   debugLevel: AxiosRetryClientOptions['debugLevel'];
   name: AxiosRetryClientOptions['name'];
-  maxRetries: AxiosRetryClientOptions['maxRetries'];
-  exponentialBackoff: AxiosRetryClientOptions['exponentialBackoff'];
-  axiosConfig: AxiosRetryClientOptions['axiosConfig'];
-  baseURL: AxiosRetryClientOptions['baseURL'];
+  retryConfig: AxiosRetryClientOptions['retryConfig'];
+  retryEnabled: AxiosRetryClientOptions['retryEnabled'];
 
   constructor(config: AxiosRetryClientOptions) {
     config = {
       axiosConfig: {},
-      maxRetries: 0,
-      initialRetryDelay: 1000,
-      exponentialBackoff: true,
+      retryConfig: {
+        retries: 3,
+        retryDelay: axiosRetry.exponentialDelay,
+      },
+      retryEnabled: true,
       debug: false,
       debugLevel: 'normal',
       name: 'AxiosRetryClient',
       ...config,
     };
 
-    this.initialRetryDelay = config.initialRetryDelay;
-    this.maxRetries = config.maxRetries;
-    this.exponentialBackoff = config.exponentialBackoff;
+    this.axiosConfig = config.axiosConfig;
+    this.axiosRetry = axiosRetry;
+    this.baseURL = config.baseURL;
     this.debug = config.debug;
     this.debugLevel = config.debugLevel;
     this.name = config.name;
-    this.axiosConfig = config.axiosConfig;
-    this.baseURL = config.baseURL;
+    this.retryConfig = config.retryConfig;
+    this.retryEnabled = config.retryEnabled;
 
     const client = axios.create({
       ...config.axiosConfig,
       baseURL: config.baseURL,
     });
 
-    if (config.maxRetries! > 0) {
-      axiosRetry(client, {
-        retries: config.maxRetries!,
-        retryDelay: config.exponentialBackoff ? this._exponentialBackoff : this._initialRetryDelay,
-      });
+    if (config.retryEnabled) {
+      axiosRetry(client, config.retryConfig);
     }
 
     this.axios = client;
@@ -121,21 +107,17 @@ export class AxiosRetryClient {
     let req: AxiosResponse<T> | undefined;
 
     // Call beforeRequest hook to potentially modify the request parameters
-    const filteredArgs = await this.beforeRequestFilter(requestType, url, data, config);
+    const filteredArgs = await this.preRequestFilter(requestType, url, data, config);
     data = filteredArgs.data;
     config = filteredArgs.config;
 
     // Call beforeRequestAction hook to perform any actions before the request is sent
-    await this.beforeRequestAction(requestType, url, data, config);
+    await this.preRequestAction(requestType, url, data, config);
 
     let axiosInstance = this.axios;
 
-    if (config.maxRetries !== undefined) {
-      axiosInstance = this.createNewAxiosInstanceWithRetry({
-        maxRetries: config.maxRetries!,
-        initialRetryDelay: config.initialRetryDelay ?? this.initialRetryDelay!,
-        exponentialBackoff: config.exponentialBackoff ?? this.exponentialBackoff!,
-      });
+    if (!!config['axios-retry'] && !this.retryEnabled) {
+      axiosInstance = this.createNewAxiosInstanceWithRetry(config['axios-retry']);
     }
 
     try {
@@ -164,26 +146,24 @@ export class AxiosRetryClient {
   }
 
   /**
-   * Creates a new axios instance with retry options
-   * @param retryOptions - The retry options
+   * Creates a new axios instance with retry options. Used if `axios-retry`
+   * config is provided in the request config but retry is disabled globally.
+   *
+   * @param retryConfig - The retry options
    * @returns The new axios instance
    */
-  protected createNewAxiosInstanceWithRetry(retryOptions: RetryOptions = {}): AxiosInstance {
+  protected createNewAxiosInstanceWithRetry(retryConfig: IAxiosRetryConfig): AxiosInstance {
     const axiosInstance = axios.create({
       ...this.axiosConfig,
       baseURL: this.baseURL,
     });
 
-    if (retryOptions.maxRetries !== undefined && retryOptions.maxRetries > 0) {
-      axiosRetry(axiosInstance, {
-        retries: retryOptions.maxRetries,
-        retryDelay: retryOptions.exponentialBackoff
-          ? (retryNumber: number, _error: AxiosError) =>
-              Math.pow(retryOptions.initialRetryDelay ?? this.initialRetryDelay!, retryNumber)
-          : (_retryNumber: number, _error: AxiosError) =>
-              retryOptions.initialRetryDelay ?? this.initialRetryDelay!,
-      });
-    }
+    retryConfig = {
+      ...this.retryConfig,
+      ...retryConfig,
+    };
+
+    axiosRetry(axiosInstance, retryConfig);
 
     return axiosInstance;
   }
@@ -226,11 +206,25 @@ export class AxiosRetryClient {
     return this._request<T>(RequestType.DELETE, url, undefined, config);
   }
 
-  private _exponentialBackoff = (retryNumber: number) => {
-    return Math.pow(this.initialRetryDelay!, retryNumber);
-  };
-
-  private _initialRetryDelay = () => this.initialRetryDelay!;
+  /**
+   * Override this method in your extending class to modify the request data or
+   * config before the request is sent.
+   *
+   * @deprecated Use preRequestFilter instead. This will be removed in a future version.
+   * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
+   * @param url - The request URL
+   * @param data - The request data
+   * @param config - The request config
+   * @returns The modified request parameters
+   */
+  protected async beforeRequestFilter(
+    requestType: RequestType,
+    url: string,
+    data: any,
+    config: AxiosRequestConfig
+  ) {
+    return this.preRequestFilter(requestType, url, data, config);
+  }
 
   /**
    * Define this requestType in your extending class to globally modify the
@@ -242,7 +236,7 @@ export class AxiosRetryClient {
    * @param config - The request config
    * @returns The modified request parameters
    */
-  protected async beforeRequestFilter(
+  protected async preRequestFilter(
     //@ts-ignore
     requestType: RequestType,
     //@ts-ignore
@@ -257,6 +251,8 @@ export class AxiosRetryClient {
    * Override this method in your extending class to perform any actions before
    * the request is sent such as logging the request details. By default, this will
    * log the request details if debug is enabled.
+   *
+   * @deprecated Use preRequestAction instead. This will be removed in a future version.
    * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
    * @param url - The request URL
    * @param data - The request data
@@ -268,8 +264,30 @@ export class AxiosRetryClient {
     data: any,
     config: AxiosRequestConfig
   ): Promise<void> {
+    return this.preRequestAction(requestType, url, data, config);
+  }
+
+  /**
+   * Override this method in your extending class to perform any actions before
+   * the request is sent such as logging the request details. By default, this will
+   * log the request details if debug is enabled.
+   * @param requestType - The request type (GET, POST, PUT, PATCH, DELETE)
+   * @param url - The request URL
+   * @param data - The request data
+   * @param config - The request config
+   */
+  protected async preRequestAction(
+    requestType: RequestType,
+    url: string,
+    data: any,
+    config: AxiosRequestConfig
+  ): Promise<void> {
     if (this.debug) {
-      logData(`[${this.name}] ${requestType} ${url}`, { data, config });
+      if (this.debugLevel === 'verbose') {
+        logData(`[${this.name}] ${requestType} ${url}`, { data, config });
+      } else {
+        logData(`[${this.name}] ${requestType} ${url}`, { data });
+      }
     }
   }
 

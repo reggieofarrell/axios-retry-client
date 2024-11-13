@@ -157,6 +157,8 @@ export class AxiosRetryClient {
     const axiosInstance = axios.create({
       ...this.axiosConfig,
       baseURL: this.baseURL,
+      // Copy over the adapter from the original instance to maintain mocks for testing, Only set adapter if it exists
+      ...(this.axios.defaults.adapter && { adapter: this.axios.defaults.adapter })
     });
 
     retryConfig = {
@@ -238,9 +240,9 @@ export class AxiosRetryClient {
    * @returns The modified request parameters
    */
   protected async preRequestFilter(
-    //@ts-ignore
+    // @ts-expect-error - not used here, but may be used in a subclass
     requestType: RequestType,
-    //@ts-ignore
+    // @ts-expect-error - not used here, but may be used in a subclass
     url: string,
     data: any,
     config: AxiosRequestConfig

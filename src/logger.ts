@@ -5,8 +5,8 @@
 const color =
   (colorCode: string) =>
   (text: string): string => {
-    // @ts-ignore
-    if (typeof window === 'undefined') {
+    // @ts-expect-error - globalThis is not defined in the global scope
+    if (typeof globalThis.window === 'undefined') {
       return `\x1b[${colorCode}m${text}\x1b[0m`;
     }
     return text;

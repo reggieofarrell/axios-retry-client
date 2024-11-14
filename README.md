@@ -7,9 +7,11 @@ A class based api client for both the server and browser built on `axios` and `a
 ```bash
 npm install @reggieofarrell/axios-retry-client
 ```
-
 ## `1.x` Breaking Changes
-`maxRetries`, `initialRetryDelay`, `exponentialBackoff` config options have been removed in favor of just exposing the entire `axios-retry` configuration via a `retryConfig` option. `retryConfig.retries` defaults to `0`. To enable retries, pass a minimum `retryConfig` of `{ retries: number }`
+`maxRetries`, `initialRetryDelay`, `exponentialBackoff` config options have been removed in favor of just exposing the entire `axios-retry` configuration via a `retryConfig` option. A `enableRetry` option was also added which defaults to `false`.
+
+## `2.x` Breaking Changes
+`enableRetry` was removed in favor of just honoring `retryConfig.retries` which defaults to `0`. To enable retries, pass a minimum `retryConfig` of `{ retries: number }`
 
 ## Usage
 

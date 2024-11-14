@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axiosRetry, { type IAxiosRetryConfig, AxiosRetry } from 'axios-retry';
-import { logData, logInfo } from './logger';
+import { logData } from './logger';
 
 export enum RequestType {
   GET = 'GET',
@@ -11,8 +11,15 @@ export enum RequestType {
   DELETE = 'DELETE',
 }
 
+type BackoffOptions = 'exponential' | 'linear' | 'none';
+
+export interface AxiosRetryClientRetryConfig extends IAxiosRetryConfig {
+  delayFactor?: number;
+  backoff?: BackoffOptions;
+}
+
 export interface AxiosRetryClientRequestConfig extends AxiosRequestConfig {
-  'axios-retry'?: IAxiosRetryConfig;
+  retryConfig?: AxiosRetryClientRetryConfig;
 }
 
 export interface AxiosRetryClientResponse<T> {
@@ -43,10 +50,10 @@ export interface AxiosRetryClientOptions extends IAxiosRetryConfig {
    */
   name?: string;
   /**
-   * Configuration for the axios-retry plugin. See [axios-retry](https://www.npmjs.com/package/axios-retry) for more details.
-   * The default configuration is `{ retries: 3, retryDelay: axiosRetry.exponentialDelay }`.
+   * Our extended configuration for the axios-retry plugin. See [axios-retry](https://www.npmjs.com/package/axios-retry) for more details.
+   * The default configuration is `{ retries: 3, retryDelay: axiosRetry.exponentialDelay } with a 500ms initial retry delay`.
    */
-  retryConfig?: IAxiosRetryConfig;
+  retryConfig?: AxiosRetryClientRetryConfig;
 }
 
 export class AxiosRetryClient {
@@ -57,16 +64,27 @@ export class AxiosRetryClient {
   debug: AxiosRetryClientOptions['debug'];
   debugLevel: AxiosRetryClientOptions['debugLevel'];
   name: AxiosRetryClientOptions['name'];
-  retryConfig: AxiosRetryClientOptions['retryConfig'];
+  retryConfig: AxiosRetryClientRetryConfig;
 
   constructor(config: AxiosRetryClientOptions) {
-    const defaultRetryConfig = {
+    const backoff = config.retryConfig?.backoff || 'exponential';
+    const delayFactor = config.retryConfig?.delayFactor || 500;
+    const name = config.name || 'AxiosRetryClient';
+
+    const defaultRetryConfig: AxiosRetryClientRetryConfig = {
       retries: 0,
-      retryDelay: (retryNumber: number, error: AxiosError<unknown, any> | undefined) =>
-        axiosRetry.exponentialDelay(retryNumber, error, 500),
+      retryDelay: (retryCount: number, error: AxiosError<unknown, any>) =>
+        this.getRetryDelay(retryCount, error, backoff, delayFactor),
+      onRetry: (retryCount, error, requestConfig) => {
+        if (this.debug) {
+          console.log(`[${name}] Retry #${retryCount} for ${requestConfig.baseURL}${requestConfig.url} due to error: ${error.message}`);
+        }
+      },
+      delayFactor,
+      backoff,
     };
 
-    const retryConfig = config.retryConfig
+    const retryConfig: AxiosRetryClientRetryConfig = config.retryConfig
       ? {
           ...defaultRetryConfig,
           ...config.retryConfig,
@@ -80,7 +98,7 @@ export class AxiosRetryClient {
       retryConfig,
       debug: false,
       debugLevel: 'normal',
-      name: 'AxiosRetryClient',
+      name,
       ...config,
     };
 
@@ -90,7 +108,7 @@ export class AxiosRetryClient {
     this.debug = config.debug;
     this.debugLevel = config.debugLevel;
     this.name = config.name;
-    this.retryConfig = config.retryConfig;
+    this.retryConfig = config.retryConfig!;
 
     const client = axios.create({
       ...config.axiosConfig,
@@ -102,6 +120,21 @@ export class AxiosRetryClient {
     this.axios = client;
   }
 
+  private getRetryDelay(
+    retryCount: number,
+    error: AxiosError<unknown, any>,
+    backoff: string,
+    delayFactor: number
+  ): number {
+    if (backoff === 'exponential') {
+      return axiosRetry.exponentialDelay(retryCount, error, delayFactor);
+    } else if (backoff === 'linear') {
+      return axiosRetry.linearDelay(delayFactor)(retryCount, error);
+    } else {
+      return delayFactor;
+    }
+  }
+
   private async _request<T>(
     requestType: RequestType,
     url: string,
@@ -110,10 +143,35 @@ export class AxiosRetryClient {
   ): Promise<AxiosRetryClientResponse<T>> {
     let req: AxiosResponse<T> | undefined;
 
+    if (config.retryConfig) {
+      let retryConfig: IAxiosRetryConfig;
+
+      if (config.retryConfig.backoff || config.retryConfig.delayFactor) {
+        retryConfig = {
+          ...this.retryConfig,
+          retryDelay: (retryCount: number, error: AxiosError<unknown, any>) =>
+            this.getRetryDelay(
+              retryCount,
+              error,
+              config.retryConfig?.backoff || this.retryConfig.backoff!,
+              config.retryConfig?.delayFactor || this.retryConfig.delayFactor!
+            ),
+          ...config.retryConfig,
+        };
+      } else {
+        retryConfig = {
+          ...this.retryConfig,
+          ...config.retryConfig,
+        };
+      }
+
+      config['axios-retry'] = retryConfig;
+    }
+
     // Call beforeRequest hook to potentially modify the request parameters
     const filteredArgs = await this.preRequestFilter(requestType, url, data, config);
-    data = filteredArgs.data;
-    config = filteredArgs.config;
+    data = filteredArgs.data ?? data;
+    config = filteredArgs.config ?? config;
 
     // Call beforeRequestAction hook to perform any actions before the request is sent
     await this.preRequestAction(requestType, url, data, config);
@@ -292,7 +350,7 @@ export class AxiosRetryClient {
           `[${this.name}] ${reqType} ${url} : [${error.response.status}] ${error.response.data.message}`,
           error.response.status,
           error.response.data,
-          error
+          error.toString ? error.toString() : error
         );
       } else if (
         error.response &&
@@ -304,7 +362,7 @@ export class AxiosRetryClient {
           `[${this.name}] ${reqType} ${url} : [${error.response.status}]`,
           error.response.status,
           error.response.data,
-          error
+          error.toString ? error.toString() : error
         );
       } else {
         throw new Error(error);
@@ -341,7 +399,7 @@ export class AxiosRetryClient {
         if (this.debugLevel === 'verbose') {
           logData(`[${this.name}] ${reqType} ${url} : error`, error);
         } else {
-          logInfo(`[${this.name}] ${reqType} ${url} error.message : ${error.message}`);
+          console.log(`[${this.name}] ${reqType} ${url} error.message : ${error.message}`);
         }
       }
 

@@ -24,7 +24,7 @@ The `AxiosRetryClient` accepts the following configuration options:
 - `debug`: Whether to log request and response details.
 - `debugLevel`: Debug level. 'normal' will log request and response data. 'verbose' will log all axios properties for the request and response.
 - `name`: Name of the client. Used for logging.
-- `retryConfig`: Configuration for `axios-retry` See https://www.npmjs.com/package/axios-retry for more details. The default config if you don't override it is `{ retries: 0, retryDelay: axiosRetry.exponentialDelay }` with an initial delay of 500ms. You can override individual properties in the `retryConfig` and they will be merged with the default.
+- `retryConfig`: Extended configuration for `axios-retry` See https://www.npmjs.com/package/axios-retry for more details. The default config if you don't override it is `{ retries: 0, retryDelay: axiosRetry.exponentialDelay, retryFactor: 500, backoff: 'exponential' }`. You can override individual properties in the `retryConfig` and they will be merged with the default. We add `retryFactor` and `backoff` to the standard `axios-retry` config in order to make configuring the retry delay easier. Otherwise you'd have to create your own `retryDelay` function (which you can still do if you like)
 
 For more details, refer to the [source code](src/axios-retry-client.ts).
 
@@ -104,11 +104,13 @@ const { data } = await client.get('/endpoint', {
   timeout: 5000
 })
 ```
-In addition to the [AxiosRequestConfig](https://axios-http.com/docs/req_config) options, you can also pass override options for `axios-retry` per request
+In addition to the [AxiosRequestConfig](https://axios-http.com/docs/req_config) options, you can also pass override options for `retryConfig` per request
 ```typescript
 const { data } = await client.get('/endpoint', {
-  'axios-retry': {
-    retries: 5
+  retryConfig: {
+    retries: 5,
+    delayFactor: 1000,
+    backoff: 'linear'
   }
 })
 ```

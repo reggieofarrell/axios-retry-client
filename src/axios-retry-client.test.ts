@@ -36,6 +36,9 @@ describe('AxiosRetryClient', () => {
       expect(client.retryConfig).toEqual({
         retries: 0,
         retryDelay: expect.any(Function),
+        onRetry: expect.any(Function),
+        delayFactor: 500,
+        backoff: 'exponential',
       });
     });
 
@@ -56,6 +59,9 @@ describe('AxiosRetryClient', () => {
       expect(client.retryConfig).toEqual({
         retries: 5,
         retryDelay: expect.any(Function),
+        onRetry: expect.any(Function),
+        delayFactor: 500,
+        backoff: 'exponential',
       });
     });
   });

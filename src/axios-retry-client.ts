@@ -34,10 +34,6 @@ export interface AxiosRetryClientOptions extends IAxiosRetryConfig {
    */
   debug?: boolean;
   /**
-   * Whether to enable retries. Defaults to false.
-   */
-  enableRetry?: boolean;
-  /**
    * Debug level. 'normal' will log request and response data. 'verbose' will
    * log all axios properties for the request and response
    */
@@ -60,18 +56,27 @@ export class AxiosRetryClient {
   baseURL: AxiosRetryClientOptions['baseURL'];
   debug: AxiosRetryClientOptions['debug'];
   debugLevel: AxiosRetryClientOptions['debugLevel'];
-  enableRetry: AxiosRetryClientOptions['enableRetry'];
   name: AxiosRetryClientOptions['name'];
   retryConfig: AxiosRetryClientOptions['retryConfig'];
 
   constructor(config: AxiosRetryClientOptions) {
+    const defaultRetryConfig = {
+      retries: 0,
+      retryDelay: axiosRetry.exponentialDelay,
+    };
+
+    const retryConfig = config.retryConfig
+      ? {
+          ...defaultRetryConfig,
+          ...config.retryConfig,
+        }
+      : defaultRetryConfig;
+
+    delete config.retryConfig;
+
     config = {
       axiosConfig: {},
-      retryConfig: {
-        retries: 3,
-        retryDelay: axiosRetry.exponentialDelay,
-      },
-      enableRetry: false,
+      retryConfig,
       debug: false,
       debugLevel: 'normal',
       name: 'AxiosRetryClient',
@@ -85,16 +90,13 @@ export class AxiosRetryClient {
     this.debugLevel = config.debugLevel;
     this.name = config.name;
     this.retryConfig = config.retryConfig;
-    this.enableRetry = config.enableRetry;
 
     const client = axios.create({
       ...config.axiosConfig,
       baseURL: config.baseURL,
     });
 
-    if (config.enableRetry) {
-      axiosRetry(client, config.retryConfig);
-    }
+    axiosRetry(client, config.retryConfig);
 
     this.axios = client;
   }
@@ -115,28 +117,22 @@ export class AxiosRetryClient {
     // Call beforeRequestAction hook to perform any actions before the request is sent
     await this.preRequestAction(requestType, url, data, config);
 
-    let axiosInstance = this.axios;
-
-    if (!!config['axios-retry'] && !this.enableRetry) {
-      axiosInstance = this.createNewAxiosInstanceWithRetry(config['axios-retry']);
-    }
-
     try {
       switch (requestType) {
         case RequestType.GET:
-          req = await axiosInstance.get<T>(url, config);
+          req = await this.axios.get<T>(url, config);
           break;
         case RequestType.POST:
-          req = await axiosInstance.post<T>(url, data, config);
+          req = await this.axios.post<T>(url, data, config);
           break;
         case RequestType.PUT:
-          req = await axiosInstance.put<T>(url, data, config);
+          req = await this.axios.put<T>(url, data, config);
           break;
         case RequestType.PATCH:
-          req = await axiosInstance.patch<T>(url, data, config);
+          req = await this.axios.patch<T>(url, data, config);
           break;
         case RequestType.DELETE:
-          req = await axiosInstance.delete<T>(url, config);
+          req = await this.axios.delete<T>(url, config);
           break;
       }
     } catch (error) {
@@ -144,31 +140,6 @@ export class AxiosRetryClient {
     }
 
     return { request: req!, data: req!.data };
-  }
-
-  /**
-   * Creates a new axios instance with retry options. Used if `axios-retry`
-   * config is provided in the request config but retry is disabled globally.
-   *
-   * @param retryConfig - The retry options
-   * @returns The new axios instance
-   */
-  protected createNewAxiosInstanceWithRetry(retryConfig: IAxiosRetryConfig): AxiosInstance {
-    const axiosInstance = axios.create({
-      ...this.axiosConfig,
-      baseURL: this.baseURL,
-      // Copy over the adapter from the original instance to maintain mocks for testing, Only set adapter if it exists
-      ...(this.axios.defaults.adapter && { adapter: this.axios.defaults.adapter })
-    });
-
-    retryConfig = {
-      ...this.retryConfig,
-      ...retryConfig,
-    };
-
-    axiosRetry(axiosInstance, retryConfig);
-
-    return axiosInstance;
   }
 
   async get<T = any>(

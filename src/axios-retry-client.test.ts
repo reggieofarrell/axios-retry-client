@@ -1,5 +1,6 @@
 // @ts-expect-error - jest doesn't understand the types
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 import { AxiosRetryClient, RequestType, ApiResponseError } from './axios-retry-client';
 import MockAdapter from 'axios-mock-adapter';
 
@@ -33,9 +34,8 @@ describe('AxiosRetryClient', () => {
       expect(client.debug).toBe(false);
       expect(client.debugLevel).toBe('normal');
       expect(client.name).toBe('AxiosRetryClient');
-      expect(client.enableRetry).toBe(false);
       expect(client.retryConfig).toEqual({
-        retries: 3,
+        retries: 0,
         retryDelay: expect.any(Function),
       });
     });
@@ -46,7 +46,6 @@ describe('AxiosRetryClient', () => {
         debug: true,
         debugLevel: 'verbose',
         name: 'CustomClient',
-        enableRetry: true,
         retryConfig: {
           retries: 5,
         },
@@ -55,9 +54,9 @@ describe('AxiosRetryClient', () => {
       expect(client.debug).toBe(true);
       expect(client.debugLevel).toBe('verbose');
       expect(client.name).toBe('CustomClient');
-      expect(client.enableRetry).toBe(true);
       expect(client.retryConfig).toEqual({
         retries: 5,
+        retryDelay: axiosRetry.exponentialDelay,
       });
     });
   });
@@ -190,7 +189,6 @@ describe('AxiosRetryClient', () => {
     test('retries on failure when enabled', async () => {
       const retryClient = new AxiosRetryClient({
         baseURL: 'https://api.example.com',
-        enableRetry: true,
         retryConfig: {
           retries: 2,
           retryDelay: () => 100,
@@ -231,7 +229,9 @@ describe('AxiosRetryClient', () => {
     test('does not retry on non-retryable status codes', async () => {
       const retryClient = new AxiosRetryClient({
         baseURL: 'https://api.example.com',
-        enableRetry: true,
+        retryConfig: {
+          retries: 3,
+        },
       });
 
       const mockRetryAxios = new MockAdapter(retryClient.axios);

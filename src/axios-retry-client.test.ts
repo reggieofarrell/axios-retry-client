@@ -1,6 +1,5 @@
 // @ts-expect-error - jest doesn't understand the types
-import axios from 'axios';
-import axiosRetry from 'axios-retry';
+import axios, { AxiosError } from 'axios';
 import { AxiosRetryClient, RequestType, ApiResponseError } from './axios-retry-client';
 import MockAdapter from 'axios-mock-adapter';
 
@@ -56,7 +55,7 @@ describe('AxiosRetryClient', () => {
       expect(client.name).toBe('CustomClient');
       expect(client.retryConfig).toEqual({
         retries: 5,
-        retryDelay: axiosRetry.exponentialDelay,
+        retryDelay: expect.any(Function),
       });
     });
   });

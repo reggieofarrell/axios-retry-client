@@ -24,7 +24,7 @@ The `AxiosRetryClient` accepts the following configuration options:
 - `debug`: Whether to log request and response details.
 - `debugLevel`: Debug level. 'normal' will log request and response data. 'verbose' will log all axios properties for the request and response.
 - `name`: Name of the client. Used for logging.
-- `retryConfig`: Configuration for `axios-retry` See https://www.npmjs.com/package/axios-retry for more details. The default config if you don't override it is `{ retries: 0, retryDelay: axiosRetry.exponentialDelay }`
+- `retryConfig`: Configuration for `axios-retry` See https://www.npmjs.com/package/axios-retry for more details. The default config if you don't override it is `{ retries: 0, retryDelay: axiosRetry.exponentialDelay }` with an initial delay of 500ms. You can override individual properties in the `retryConfig` and they will be merged with the default.
 
 For more details, refer to the [source code](src/axios-retry-client.ts).
 
@@ -36,6 +36,9 @@ import { AxiosRetryClient } from '@reggieofarrell/axios-retry-client';
 const client = new AxiosRetryClient({
   baseURL: 'https://api.example.com',
   name: 'ExampleClient',
+  retryConfig: {
+    retries: 2
+  }
 });
 ```
 

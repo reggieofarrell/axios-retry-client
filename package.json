@@ -1,6 +1,6 @@
 {
   "name": "@reggieofarrell/axios-retry-client",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "A class based api client for both the server and browser built on `axios` and `axios-retry`, written in TypeScript",
   "author": "Reggie O'Farrell",
   "license": "0BSD",

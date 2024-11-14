@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axiosRetry, { type IAxiosRetryConfig, AxiosRetry } from 'axios-retry';
 import { logData, logInfo } from './logger';
 
@@ -62,7 +62,8 @@ export class AxiosRetryClient {
   constructor(config: AxiosRetryClientOptions) {
     const defaultRetryConfig = {
       retries: 0,
-      retryDelay: axiosRetry.exponentialDelay,
+      retryDelay: (retryNumber: number, error: AxiosError<unknown, any> | undefined) =>
+        axiosRetry.exponentialDelay(retryNumber, error, 500),
     };
 
     const retryConfig = config.retryConfig

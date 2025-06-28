@@ -77,7 +77,9 @@ export class AxiosRetryClient {
         this.getRetryDelay(retryCount, error, backoff, delayFactor),
       onRetry: (retryCount, error, requestConfig) => {
         if (this.debug) {
-          console.log(`[${name}] Retry #${retryCount} for ${requestConfig.baseURL}${requestConfig.url} due to error: ${error.message}`);
+          console.log(
+            `[${name}] Retry #${retryCount} for ${requestConfig.baseURL}${requestConfig.url} due to error: ${error.message}`
+          );
         }
       },
       delayFactor,
@@ -426,7 +428,7 @@ export class ApiResponseError extends Error {
   /**
    * The response text.
    */
-  response: object | string;
+  response: Record<string, any> | string;
   /**
    * The cause of the error. Usually an AxiosError.
    */

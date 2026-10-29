@@ -262,3 +262,14 @@ This project is build on top of the following open-source libraries:
 - [axios-retry](https://github.com/softonic/axios-retry) - Axios plugin that intercepts failed requests and retries them whenever possible (Apache License 2.0)
 
 For full license texts, please refer to the respective project repositories.
+
+## Development checks
+
+Use Node.js 24 for development and CI (`nvm use`, then `npm ci`). This tooling runtime does not change
+the library's TypeScript output target or introduce a consumer Node.js engine restriction.
+
+Run `npm run lint`, `npm test -- --runInBand --watchman=false`, and `npm run build` before opening a pull request.
+
+Pull requests and pushes to `main` run these checks using locked dependencies. Tag publication
+reuses the same checks before a separate publishing job receives its existing registry credential.
+The package registry and tag-based release trigger remain unchanged.

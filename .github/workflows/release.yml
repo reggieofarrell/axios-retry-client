@@ -1,30 +1,43 @@
 name: Publish Package to NPM
+
 on:
   push:
-    tags:
-      - '*'
+    tags: ['*']
+
+permissions:
+  contents: read
+
 jobs:
+  verify:
+    # A tag must pass the same meaningful checks as a pull request before the
+    # separate publishing job can access its existing registry credential.
+    uses: ./.github/workflows/tests.yml
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      # Setup .npmrc file to publish to npm
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          node-version: '20.x'
+          persist-credentials: false
+      - name: Set up development Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
-      - name: Install dependencies
+          cache: npm
+      - name: Restore locked dependencies
         run: npm ci
-      - name: Run Linter
-        run: npm run lint
-      - name: Run Tests
-        run: npm test
-      - name: Build
+      - name: Build verified package
         run: npm run build
-      - name: Publish to NPM
+      - name: Publish package
+        # Preserve the package's existing registry and authentication contract.
+        # Credentials exist only in this step after the independent checks pass.
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}

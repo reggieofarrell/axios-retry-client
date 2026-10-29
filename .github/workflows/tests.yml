@@ -1,0 +1,36 @@
+name: Package checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Release jobs reuse these same checks before gaining publish credentials.
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Package checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up development Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          # The development runtime is independent of the emitted library target.
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Restore locked dependencies
+        run: npm ci
+      - name: Lint production source
+        run: npm run lint
+      - name: Run unit tests
+        run: npm test -- --runInBand --watchman=false
+      - name: Build both package formats and declarations
+        run: npm run build
